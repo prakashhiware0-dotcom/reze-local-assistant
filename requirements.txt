@@ -1,0 +1,10 @@
+# Reze Voice Assistant — dependencies
+# Python 3.13 compatible
+
+numpy
+requests
+sounddevice
+soundfile
+langdetect
+faster-whisper
+torch
