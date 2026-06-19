@@ -42,7 +42,7 @@ Reze understands **Hindi, English, and Hinglish** speech input, but always repli
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/<your-username>/reze-local-assistant.git
+git clone (https://github.com/prakashhiware0-dotcom/reze-local-assistant.git)
 cd reze-local-assistant
 ```
 
