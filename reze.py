@@ -8,10 +8,10 @@ Stack:
   - Language           : English
 
 Requirements:
-  pip install faster-whisper sounddevice soundfile numpy requests langdetect torch
+  pip install faster-whisper sounddevice soundfile numpy requests langdetect torch psutil
 
 Piper setup:
-  1.For me it windows : Extract piper_windows_amd64.zip → place piper.exe at: piper\piper.exe
+  1.For me it windows : Extract piper_windows_amd64.zip → place piper.exe at: piper\\piper.exe
   2. Download en_US-lessac-high.onnx + .onnx.json → same folder as reze.py
 
 Ollama must be running:
@@ -28,6 +28,8 @@ import requests
 import torch
 from faster_whisper import WhisperModel
 from langdetect import detect, DetectorFactory
+import psutil
+from datetime import datetime
 
 DetectorFactory.seed = 0
 
@@ -38,7 +40,7 @@ OLLAMA_URL     = os.environ.get("REZE_OLLAMA_URL", "http://localhost:11434/api/c
 OLLAMA_MODEL   = os.environ.get("REZE_OLLAMA_MODEL", "llama3.1:8b")
 
 WHISPER_MODEL  = os.environ.get("REZE_WHISPER_MODEL", "medium")
-RECORD_SECONDS = int(os.environ.get("REZE_RECORD_SECONDS", "8"))
+RECORD_SECONDS = int(os.environ.get("REZE_RECORD_SECONDS", "5"))
 SAMPLE_RATE    = 16000
 
 # Piper paths — relative to reze.py location (override with env vars if needed)
@@ -95,7 +97,17 @@ def transcribe(audio: np.ndarray) -> str:
 #  OLLAMA NLP
 # ══════════════════════════════════════════════════════════════════════════════
 def ask_ollama(user_text: str, history: list) -> str:
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    status = get_device_status()
+    full_system_prompt = f"""{SYSTEM_PROMPT}
+
+Current real-time device info (mention only if the user's question is actually about it):
+- Time: {status['time']}
+- Battery: {status['battery']}
+- CPU usage: {status['cpu_usage']}
+- RAM usage: {status['ram_usage']}
+- Free disk space: {status['disk_free_gb']} GB"""
+
+    messages = [{"role": "system", "content": full_system_prompt}]
     messages.extend(history[-6:])
     messages.append({"role": "user", "content": user_text})
 
@@ -159,6 +171,45 @@ def speak(text: str):
         print(f"   Reze: {text}")
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  DEVICE STATUS
+# ══════════════════════════════════════════════════════════════════════════════
+def get_device_status():
+    battery = psutil.sensors_battery()
+    battery_str = (
+        f"{battery.percent}% ({'charging' if battery.power_plugged else 'on battery'})"
+        if battery else "No battery (desktop)"
+    )
+    return {
+        "time": datetime.now().strftime("%I:%M %p, %A, %d %B %Y"),
+        "battery": battery_str,
+        "cpu_usage": f"{psutil.cpu_percent(interval=0.5)}%",
+        "ram_usage": f"{psutil.virtual_memory().percent}%",
+        "disk_free_gb": round(psutil.disk_usage('C:\\').free / (1024**3), 1)
+    }
+
+
+def check_direct_commands(user_input: str):
+    text = user_input.lower()
+    status = get_device_status()
+
+    if "time" in text and "date" in text:
+        return f"It's {status['time']}"
+    elif "time" in text:
+        return f"It's {status['time'].split(',')[0]}"
+    elif "date" in text or "day is it" in text:
+        return f"Today is {status['time'].split(', ', 1)[1]}"
+    elif "battery" in text:
+        return f"Your battery is at {status['battery']}"
+    elif "cpu" in text or "processor" in text:
+        return f"CPU usage is at {status['cpu_usage']}"
+    elif "ram" in text or "memory" in text:
+        return f"RAM usage is at {status['ram_usage']}"
+    elif "disk" in text or "storage" in text:
+        return f"You have {status['disk_free_gb']} GB free"
+
+    return None
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  MAIN LOOP
 # ══════════════════════════════════════════════════════════════════════════════
 def main():
@@ -180,6 +231,11 @@ def main():
 
             if not user_text:
                 speak("I didn't hear anything. Please try again.")
+                continue
+
+            direct_answer = check_direct_commands(user_text)
+            if direct_answer:
+                speak(direct_answer)
                 continue
 
             if any(kw in user_text.lower() for kw in ["exit", "quit", "bye", "stop"]):
