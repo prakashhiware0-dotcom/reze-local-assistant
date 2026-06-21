@@ -8,3 +8,8 @@ soundfile
 langdetect
 faster-whisper
 torch
+psutil          # used by reze.py (get_device_status) — was missing from the original list
+
+# Added for the web UI server (server.py) — not needed for terminal-only reze.py
+fastapi
+uvicorn[standard]
