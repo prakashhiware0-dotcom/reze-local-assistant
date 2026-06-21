@@ -8,4 +8,12 @@ numpy
 requests
 langdetect
 torch
+<<<<<<< HEAD
 psutil
+=======
+psutil          # used by reze.py (get_device_status) — was missing from the original list
+
+# Added for the web UI server (server.py) — not needed for terminal-only reze.py
+fastapi
+uvicorn[standard]
+>>>>>>> 228e54e (feat: add web interface and server)

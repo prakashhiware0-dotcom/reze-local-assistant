@@ -14,6 +14,7 @@ Reze understands **Hindi, English, and Hinglish** speech input, but always repli
 - 🌐 **Fully Offline** — no internet required after initial model downloads
 - ⚡ **GPU Accelerated** — automatically uses CUDA if available, falls back to CPU
 - 🗣️ **Multilingual Input** — speak in Hindi, English, or mixed Hinglish; Reze understands all three
+- 🖥️ **Web UI (new)** — optional browser interface as an alternative to the terminal; same engine underneath ([see below](#-web-ui-new))
 
 ---
 
@@ -125,6 +126,59 @@ Say **"exit"**, **"quit"**, **"bye"**, or **"stop"** at any time to end the sess
 
 ---
 
+## 🖥️ Web UI (new)
+
+Reze can also run behind a local browser page instead of the terminal —
+same `reze.py` engine underneath, untouched. This is optional; terminal
+mode (`python reze.py`) still works exactly as documented above.
+
+### Setup
+
+1. Install the extra web dependencies (already added to `requirements.txt`):
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Make sure Piper and the Whisper/Ollama setup above is done first — the
+   web UI uses the same models and config.
+
+### Run it
+
+Open two terminals in this folder:
+
+**Terminal 1 — start Ollama, keep it running:**
+```bash
+ollama serve
+```
+
+**Terminal 2 — start the web server:**
+```bash
+python server.py
+```
+
+Then open `http://localhost:8765` in your browser.
+
+These two commands are all the web UI needs — `ollama serve` keeps the
+LLM available, and `python server.py` starts Reze's web server and
+prints the URL to open.
+
+### How it works
+
+- Tap the mic button → Reze listens for `REZE_RECORD_SECONDS` seconds
+  (recorded locally via `sounddevice`, same as terminal mode) → shows
+  "Thinking…" while Ollama responds → "Speaking…" while the Piper reply
+  plays back in your browser tab.
+- Or type a message in the input box to skip voice entirely — same
+  Ollama call, same conversation history, just bypasses Whisper.
+- The connection badge (top-right) shows whether the browser is linked
+  to the local server.
+
+`server.py` does not duplicate any assistant logic — it imports
+`record_audio`, `transcribe`, `ask_ollama`, `check_direct_commands`, and
+`get_device_status` directly from `reze.py`. Editing `reze.py` changes
+behavior in both the terminal and the web UI.
+
+---
+
 ## 🛠️ Troubleshooting
 
 **Ollama returns empty replies**
@@ -151,6 +205,7 @@ Try the `large-v3` Whisper model (more accurate, slower) via `REZE_WHISPER_MODEL
 - [ ] Conversation memory persistence across sessions
 - [ ] Optional internet search tool integration
 - [ ] GPU benchmark mode
+- [ ] Streamed (real-time) transcription and TTS playback in the web UI
 
 ---
 
