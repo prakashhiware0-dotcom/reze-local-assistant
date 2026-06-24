@@ -8,8 +8,8 @@ Reze understands **Hindi, English, and Hinglish** speech input, but always repli
 
 ## ✨ Features
 
-- 🎤 **Speech Recognition** — [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (auto-detects Hindi / English / Hinglish)
-- 🧠 **Local LLM Brain** — powered by [Ollama](https://ollama.com) (default: `llama3.1:8b`)
+- 🎤 **Speech Recognition** — SenseVoiceSmall with Silero VAD for low-latency turn detection
+- 🧠 **Local LLM Brain** — powered by [Ollama](https://ollama.com) (default: `huihui_ai/llama3.2-abliterate:3b`)
 - 🔊 **Natural Offline TTS** — [Piper TTS](https://github.com/rhasspy/piper) (`en_US-lessac-high` voice — human-like, not robotic)
 - 🌐 **Fully Offline** — no internet required after initial model downloads
 - ⚡ **GPU Accelerated** — automatically uses CUDA if available, falls back to CPU
@@ -22,20 +22,19 @@ Reze understands **Hindi, English, and Hinglish** speech input, but always repli
 
 | Component | Technology |
 |---|---|
-| Speech-to-Text | faster-whisper (`medium` model) |
-| Language Model | Ollama + Llama 3.1 8B |
+| Speech-to-Text | SenseVoiceSmall + Silero VAD |
+| Language Model | Ollama + Llama 3.2 3B |
 | Text-to-Speech | Piper TTS (`en_US-lessac-high`) |
 | Audio I/O | sounddevice, soundfile |
-| Language Detection | langdetect |
 
 ---
 
 ## 📦 Prerequisites
 
-- **Python 3.13+**
+- **Python 3.11 or 3.12 on Windows**. Some speech dependencies do not publish Python 3.13 wheels yet.
 - **[Ollama](https://ollama.com/download)** installed and running
 - A working microphone and speakers
-- ~3 GB free disk space (for Whisper + Piper models)
+- ~3 GB free disk space (for SenseVoice + Piper models)
 
 ---
 
@@ -52,10 +51,14 @@ cd reze-local-assistant
 pip install -r requirements.txt
 ```
 
+If Windows fails while building `editdistance`, you are probably using Python
+3.13. Install Python 3.11 or 3.12, then create the virtual environment with
+that version.
+
 ### 3. Pull the Ollama model
 ```bash
-ollama pull llama3.1:8b
-ollama run llama3.1:8b
+ollama pull huihui_ai/llama3.2-abliterate
+ollama run huihui_ai/llama3.2-abliterate
 ```
 Keep this running in a separate terminal (or let Ollama run as a background service).
 
@@ -78,7 +81,7 @@ Keep this running in a separate terminal (or let Ollama run as a background serv
 python reze.py
 ```
 
-The first run will also auto-download the Whisper `medium` model (~1.5 GB) from Hugging Face — this only happens once.
+The first run will also auto-download SenseVoiceSmall — this only happens once.
 
 ---
 
@@ -88,21 +91,22 @@ All settings can be overridden via environment variables — no code editing req
 
 | Variable | Default | Description |
 |---|---|---|
-| `REZE_OLLAMA_MODEL` | `llama3.1:8b` | Ollama model name |
+| `REZE_OLLAMA_MODEL` | `huihui_ai/llama3.2-abliterate:latest` | Ollama model name |
 | `REZE_OLLAMA_URL` | `http://localhost:11434/api/chat` | Ollama API endpoint |
-| `REZE_WHISPER_MODEL` | `medium` | Whisper model size (`tiny`/`base`/`small`/`medium`/`large`) |
-| `REZE_RECORD_SECONDS` | `8` | Recording window length per turn |
+| `REZE_SENSEVOICE_MODEL` | `iic/SenseVoiceSmall` | SenseVoice model name |
+| `REZE_MAX_RECORD_SECONDS` | `12` | Safety cap for one VAD turn |
+| `REZE_VAD_SILENCE_MS` | `300` | Silence duration that ends a turn |
 | `REZE_PIPER_EXE` | `piper/piper.exe` | Path to Piper binary |
 | `REZE_PIPER_MODEL` | `en_US-lessac-high.onnx` | Piper voice model file |
 
 Example (Linux/Mac):
 ```bash
-REZE_WHISPER_MODEL=small REZE_OLLAMA_MODEL=qwen3:4b python reze.py
+REZE_OLLAMA_MODEL=qwen3:4b python reze.py
 ```
 
 Example (Windows PowerShell):
 ```powershell
-$env:REZE_WHISPER_MODEL="small"; python reze.py
+$env:REZE_OLLAMA_MODEL="qwen3:4b"; python reze.py
 ```
 
 ---
@@ -113,13 +117,12 @@ Once running, Reze will greet you and start listening in turns:
 
 ```
 🎙️  Reze Voice Assistant  |  say 'exit' to quit
-STT: Whisper Medium  |  TTS: Piper (offline)
-NLP: llama3.1:8b via Ollama
+STT: SenseVoiceSmall  |  TTS: Piper (offline)
+NLP: huihui_ai/llama3.2-abliterate:latest via Ollama
 
-🎤 Listening for 8s … (speak now)
-📝 You said : 'What is the capital of India?'  [lang≈en]
-🤖 Thinking … done
-🔊 Reze: The capital of India is New Delhi.
+Listening... speak when ready. Silence > 300 ms ends the turn.
+You said: 'What is the capital of India?'
+Reze: The capital of India is New Delhi.
 ```
 
 Say **"exit"**, **"quit"**, **"bye"**, or **"stop"** at any time to end the session.
@@ -163,7 +166,7 @@ prints the URL to open.
 
 ### How it works
 
-- Tap the mic button → Reze listens for `REZE_RECORD_SECONDS` seconds
+- Tap the mic button → Reze listens until Silero VAD detects the end of speech
   (recorded locally via `sounddevice`, same as terminal mode) → shows
   "Thinking…" while Ollama responds → "Speaking…" while the Piper reply
   plays back in your browser tab.
@@ -187,25 +190,25 @@ Make sure you're using `/api/chat` (not `/api/generate`) and that the model is p
 **Piper not found / TTS silent**
 Check that `piper.exe` exists at the path set in `REZE_PIPER_EXE`, and that the `.onnx` + `.onnx.json` files are both present in the project root.
 
-**Whisper download is slow / rate-limited**
+**SenseVoice download is slow / rate-limited**
 Set a free Hugging Face token to speed up downloads:
 ```bash
 huggingface-cli login
 ```
 
-**Speech recognition struggles with Hinglish**
-Try the `large-v3` Whisper model (more accurate, slower) via `REZE_WHISPER_MODEL=large-v3`.
+**Speech recognition struggles with a specific accent**
+Try a different SenseVoice-compatible model via `REZE_SENSEVOICE_MODEL`.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] Wake-word detection ("Hey Reze") instead of fixed recording windows
+- [ ] Wake-word detection ("Hey Reze")
 - [ ] Voice cloning support (Coqui XTTS / on Python ≤3.11)
 - [ ] Conversation memory persistence across sessions
 - [ ] Optional internet search tool integration
 - [ ] GPU benchmark mode
-- [ ] Streamed (real-time) transcription and TTS playback in the web UI
+- [ ] Browser-side interruption controls for streamed TTS playback
 
 ---
 
@@ -217,6 +220,7 @@ MIT — see [LICENSE](LICENSE)
 
 ## 🙏 Acknowledgements
 
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+- [FunASR / SenseVoice](https://github.com/FunAudioLLM/SenseVoice)
+- [Silero VAD](https://github.com/snakers4/silero-vad)
 - [Ollama](https://ollama.com)
 - [Piper TTS](https://github.com/rhasspy/piper)

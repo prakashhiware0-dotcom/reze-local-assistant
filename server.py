@@ -25,12 +25,12 @@ silently killing the process.
 import os
 import sys
 import json
-import base64
 import asyncio
-import tempfile
+import base64
 import traceback
 import webbrowser
 import threading
+import uuid
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -59,8 +59,9 @@ def load_reze_module():
     global reze
     try:
         boot_state["stage"] = "loading_models"
-        boot_state["detail"] = "Loading speech model (first run may take a few minutes)…"
+        boot_state["detail"] = "Loading fine-tuned speech model (first run may take a few minutes to download)…"
         import reze as _reze
+        _reze.warm_models()
         reze = _reze
         boot_state["stage"] = "ready"
         boot_state["detail"] = "Ready"
@@ -89,6 +90,14 @@ except ImportError:
 app = FastAPI(title="Reze Voice Assistant")
 
 
+@app.middleware("http")
+async def no_cache_static(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+
 @app.get("/")
 async def index():
     return FileResponse(str(BASE_DIR / "static" / "index.html"))
@@ -100,29 +109,14 @@ async def boot_status():
 
 
 def synthesize_speech(text: str):
-    """Same Piper command reze.speak() uses, but returns WAV bytes for the
-    browser to play instead of calling sd.play() on the server."""
+    """Return Piper WAV bytes for the browser to play."""
     if reze is None:
         return None
-    if not (os.path.exists(reze.PIPER_EXE) and os.path.exists(reze.PIPER_MODEL)):
-        return None
-
-    import subprocess
 
     try:
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            tmp_path = tmp.name
-
-        cmd = [reze.PIPER_EXE, "--model", reze.PIPER_MODEL, "--output_file", tmp_path]
-        result = subprocess.run(cmd, input=text.encode("utf-8"), capture_output=True, timeout=30)
-
-        if result.returncode != 0:
-            print(f"⚠️  Piper error: {result.stderr.decode(errors='ignore')}")
+        wav_bytes = reze.synthesize_wav_bytes(text)
+        if not wav_bytes:
             return None
-
-        with open(tmp_path, "rb") as f:
-            wav_bytes = f.read()
-        os.unlink(tmp_path)
         return base64.b64encode(wav_bytes).decode("ascii")
     except Exception as e:
         print(f"⚠️  TTS error: {e}")
@@ -139,7 +133,7 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_text(json.dumps({"event": event, **payload}))
 
     async def speak_to_browser(text: str):
-        await send("speaking", text=text)
+        await send("speaking", text=text, message_id=f"assistant-{uuid.uuid4().hex}")
         audio_b64 = await loop.run_in_executor(None, synthesize_speech, text)
         await send("audio", audio=audio_b64, text=text)
 
@@ -167,19 +161,20 @@ async def websocket_endpoint(ws: WebSocket):
                 continue
 
             if msg_type == "listen":
+                client_id = msg.get("client_id") or f"voice-{uuid.uuid4().hex}"
                 seconds = int(msg.get("seconds", reze.RECORD_SECONDS))
                 await send("listening", seconds=seconds)
 
-                audio = await loop.run_in_executor(None, reze.record_audio, seconds)
+                audio = await loop.run_in_executor(None, reze.record_audio, seconds, reze.SAMPLE_RATE, reze.stop_speaking)
                 user_text = await loop.run_in_executor(None, reze.transcribe, audio)
 
                 if not user_text:
-                    await send("user_text", text="")
+                    await send("user_text", text="", message_id=client_id)
                     await speak_to_browser("I didn't hear anything. Please try again.")
                     await send("idle")
                     continue
 
-                await send("user_text", text=user_text)
+                await send("user_text", text=user_text, message_id=client_id)
 
                 direct_answer = await loop.run_in_executor(None, reze.check_direct_commands, user_text)
                 if direct_answer:
@@ -196,11 +191,12 @@ async def websocket_endpoint(ws: WebSocket):
                 await send("idle")
 
             elif msg_type == "text":
+                client_id = msg.get("client_id") or f"text-{uuid.uuid4().hex}"
                 user_text = (msg.get("text") or "").strip()
                 if not user_text:
                     continue
 
-                await send("user_text", text=user_text)
+                await send("user_text", text=user_text, message_id=client_id)
 
                 direct_answer = await loop.run_in_executor(None, reze.check_direct_commands, user_text)
                 if direct_answer:

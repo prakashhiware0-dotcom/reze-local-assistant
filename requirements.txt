@@ -1,19 +1,17 @@
-# Reze Voice Assistant — dependencies
-# Python 3.13 compatible
+# Reze Voice Assistant dependencies
+# Use Python 3.11 or 3.12 on Windows.
+# FunASR pulls native packages that may not have Python 3.13 wheels yet.
 
-faster-whisper
-sounddevice
-soundfile
 numpy
 requests
-langdetect
 torch
-<<<<<<< HEAD
+sounddevice
+soundfile
 psutil
-=======
-psutil          # used by reze.py (get_device_status) — was missing from the original list
+funasr
+modelscope
+silero-vad
 
-# Added for the web UI server (server.py) — not needed for terminal-only reze.py
+# Optional web UI server
 fastapi
 uvicorn[standard]
->>>>>>> 228e54e (feat: add web interface and server)

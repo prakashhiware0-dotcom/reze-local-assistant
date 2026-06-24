@@ -6,87 +6,71 @@
 <title>Reze</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=4" />
 </head>
 <body>
-
-  <div class="window">
-
-    <!-- Title bar -->
-    <div class="titlebar">
-      <div class="dots"><span></span><span></span><span></span></div>
-      <div class="titlebar-text">Reze</div>
-      <div class="titlebar-spacer"></div>
-    </div>
-
-    <!-- App header -->
-    <header class="appbar">
+  <div class="app">
+    <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-name">Reze</span>
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <div>
+          <div class="brand-name">Reze</div>
+          <div class="brand-meta">Local voice assistant</div>
+        </div>
       </div>
-      <div class="conn" id="connStatus" data-state="connecting">
-        <span class="conn-dot"></span>
-        <span class="conn-label"></span>
+
+      <div class="status-cluster">
+        <div class="voice-state" id="listeningRow">
+          <div class="bars" id="bars" aria-hidden="true"></div>
+          <span id="statusText">Ready</span>
+        </div>
+        <div class="conn" id="connStatus" data-state="connecting" aria-label="Connection status">
+          <span class="conn-dot"></span>
+          <span class="conn-label"></span>
+        </div>
       </div>
     </header>
 
-    <!-- Chat panel -->
-    <main class="panel">
-
-      <div class="avatar-zone">
-        <div class="avatar" id="avatar">
-          <svg class="avatar-ring" viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="50" cy="50" r="47" />
-          </svg>
-          <div class="avatar-face" aria-hidden="true">
-            <svg viewBox="0 0 64 64" width="40" height="40">
-              <circle cx="32" cy="24" r="12" fill="currentColor" opacity="0.9"/>
-              <path d="M10 56c0-13 9.8-22 22-22s22 9 22 22" fill="currentColor" opacity="0.9"/>
-            </svg>
-          </div>
-        </div>
-
-        <div class="listening-row" id="listeningRow">
-          <div class="bars" id="bars"></div>
-          <span class="status-label" id="statusText">Tap to speak</span>
-        </div>
-      </div>
-
-      <div class="thread" id="thread"></div>
-
+    <main class="chat">
+      <div class="thread" id="thread" aria-live="polite"></div>
     </main>
 
-    <!-- Input dock -->
-    <footer class="dock">
-      <button class="mic-btn" id="micBtn" aria-label="Tap to speak" data-active="false">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M6.5 11a5.5 5.5 0 0 0 11 0M12 17.5V20.5M9.5 20.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+    <footer class="composer-shell">
+      <div class="composer">
+        <button class="icon-btn mic-btn" id="micBtn" type="button" aria-label="Start voice input" title="Start voice input" data-active="false">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.5 11a5.5 5.5 0 0 0 11 0M12 17.5v3M9.5 20.5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
 
-      <input
-        type="text"
-        id="textInput"
-        class="text-input"
-        placeholder="Type your message…"
-        autocomplete="off"
-      />
+        <form id="messageForm" class="message-form">
+          <input
+            type="text"
+            id="textInput"
+            class="text-input"
+            placeholder="Message Reze"
+            autocomplete="off"
+          />
+          <button class="icon-btn send-btn" id="sendBtn" type="submit" aria-label="Send message" title="Send message">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
 
-      <button class="send-btn" id="sendBtn">
-        <span>Send</span>
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+        <button class="icon-btn clear-btn" id="clearBtn" type="button" aria-label="Clear chat" title="Clear chat">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
     </footer>
-
   </div>
 
+  <div class="assistant-orb" id="avatar" data-state="idle" hidden></div>
   <audio id="ttsAudio" hidden></audio>
-
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=4"></script>
 </body>
 </html>
